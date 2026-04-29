@@ -87,11 +87,13 @@ try:
             returns = data_portfolio.pct_change().dropna()
             portfolio_returns = returns.dot(weights)
 
+            portfolio_returns = pd.Series(portfolio_returns).dropna()
+
             spy = yf.download("SPY", period="1y")['Close']
             spy_returns = spy.pct_change().dropna()
 
-            total_return = (1 + portfolio_returns).prod() - 1
-            benchmark_return = (1 + spy_returns).prod() - 1
+            total_return = float((1 + portfolio_returns).prod() - 1)
+            benchmark_return = float((1 + spy_returns).prod() - 1)
 
             volatility = portfolio_returns.std() * np.sqrt(252)
 
