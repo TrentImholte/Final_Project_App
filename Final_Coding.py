@@ -3,13 +3,27 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 
+# =========================
+# PAGE CONFIG (NEW UI STYLE)
+# =========================
+st.set_page_config(
+    page_title="Stock Analytics Dashboard",
+    page_icon="📊",
+    layout="wide"
+)
+
 st.title("📈 Stock Analytics Dashboard")
+st.caption("Real-time stock analysis, technical indicators, and portfolio insights")
+
+st.divider()
 
 # =========================
 # SINGLE STOCK ANALYSIS
 # =========================
+st.header("🔎 Single Stock Analysis")
 
 ticker = st.text_input("Enter a stock ticker:", "AAPL").strip().upper()
+st.subheader(f"Analyzing: {ticker}")
 
 data_single = yf.download(
     ticker,
@@ -22,7 +36,6 @@ if data_single is None or data_single.empty:
     st.error("No data returned. Try AAPL, MSFT, TSLA, or NVDA.")
     st.stop()
 
-# Fix MultiIndex issue
 if isinstance(data_single.columns, pd.MultiIndex):
     data_single.columns = data_single.columns.get_level_values(0)
 
@@ -30,14 +43,14 @@ if isinstance(data_single.columns, pd.MultiIndex):
 data_single["20MA"] = data_single["Close"].rolling(20).mean()
 data_single["50MA"] = data_single["Close"].rolling(50).mean()
 
-# Safe scalar extraction
-price = data_single["Close"].iloc[-1]
-ma20 = data_single["20MA"].iloc[-1]
-ma50 = data_single["50MA"].iloc[-1]
+# Safe values
+price = float(data_single["Close"].iloc[-1])
+ma20 = float(data_single["20MA"].iloc[-1])
+ma50 = float(data_single["50MA"].iloc[-1])
 
-price = float(price) if pd.notna(price) else np.nan
-ma20 = float(ma20) if pd.notna(ma20) else np.nan
-ma50 = float(ma50) if pd.notna(ma50) else np.nan
+price = price if not np.isnan(price) else np.nan
+ma20 = ma20 if not np.isnan(ma20) else np.nan
+ma50 = ma50 if not np.isnan(ma50) else np.nan
 
 # Trend logic
 if np.isnan(price) or np.isnan(ma20) or np.isnan(ma50):
@@ -49,12 +62,9 @@ elif price < ma20 and ma20 < ma50:
 else:
     trend = "Mixed Trend"
 
-st.metric("Trend", trend)
-
 # =========================
 # RSI
 # =========================
-
 def compute_rsi(data, window=14):
     delta = data["Close"].diff()
     gain = delta.clip(lower=0).rolling(window).mean()
@@ -64,27 +74,32 @@ def compute_rsi(data, window=14):
     return 100 - (100 / (1 + rs))
 
 data_single["RSI"] = compute_rsi(data_single)
-rsi = data_single["RSI"].iloc[-1]
-rsi = float(rsi) if pd.notna(rsi) else np.nan
-
-st.metric("RSI", round(rsi, 2) if not np.isnan(rsi) else "N/A")
+rsi = float(data_single["RSI"].iloc[-1])
 
 # =========================
 # VOLATILITY
 # =========================
-
 returns_single = data_single["Close"].pct_change()
 volatility_single = float(returns_single.std() * np.sqrt(252))
 
-st.metric("Volatility", round(volatility_single, 4))
+# =========================
+# METRICS (CLEAN UI)
+# =========================
+col1, col2, col3 = st.columns(3)
+
+col1.metric("Trend", trend)
+col2.metric("RSI", round(rsi, 2) if not np.isnan(rsi) else "N/A")
+col3.metric("Volatility", round(volatility_single, 4))
 
 st.line_chart(data_single[["Close", "20MA", "50MA"]])
+
+st.divider()
 
 # =========================
 # PORTFOLIO ANALYSIS
 # =========================
-
-st.subheader("📊 Portfolio Analysis")
+st.header("📊 Portfolio Analysis")
+st.caption("Compare your portfolio performance vs SPY benchmark")
 
 tickers_input = st.text_input(
     "Enter tickers (comma separated):",
@@ -121,14 +136,12 @@ try:
 
     returns = data_portfolio.pct_change().dropna()
 
-    # FORCE numpy math (fixes Series issues permanently)
     portfolio_returns = returns.values @ weights
-    portfolio_returns = pd.Series(portfolio_returns).dropna().astype(float)
+    portfolio_returns = pd.Series(portfolio_returns).dropna()
 
     spy = yf.download("SPY", period="1y", progress=False)["Close"]
     spy_returns = spy.pct_change().dropna().values
 
-    # Safe scalar math
     total_return = float(np.prod(1 + portfolio_returns) - 1)
     benchmark_return = float(np.prod(1 + spy_returns) - 1)
 
@@ -139,10 +152,15 @@ try:
         if np.std(portfolio_returns) != 0 else 0
     )
 
-    st.metric("Portfolio Return", f"{total_return:.2%}")
-    st.metric("Benchmark (SPY)", f"{benchmark_return:.2%}")
-    st.metric("Sharpe Ratio", round(sharpe, 2))
-    st.metric("Volatility", round(vol, 4))
+    # =========================
+    # PORTFOLIO METRICS (CLEAN UI)
+    # =========================
+    c1, c2, c3, c4 = st.columns(4)
+
+    c1.metric("Portfolio Return", f"{total_return:.2%}")
+    c2.metric("Benchmark (SPY)", f"{benchmark_return:.2%}")
+    c3.metric("Sharpe Ratio", round(sharpe, 2))
+    c4.metric("Volatility", round(vol, 4))
 
     st.line_chart(data_portfolio)
     st.line_chart(portfolio_returns)
