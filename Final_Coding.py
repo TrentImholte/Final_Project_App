@@ -10,6 +10,10 @@ ticker = st.text_input("Enter a stock ticker:", "AAPL")
 
 data_single = yf.download(ticker, period="6mo")
 
+if data_single.empty:
+    st.error("No data returned. Try a valid ticker (e.g. AAPL, MSFT).")
+    st.stop()
+
 if isinstance(data_single.columns, pd.MultiIndex):
     data_single.columns = data_single.columns.get_level_values(0)
 
