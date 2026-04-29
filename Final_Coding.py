@@ -20,7 +20,7 @@ else:
     ma20 = float(data_single['20MA'].iloc[-1].squeeze())
     ma50 = float(data_single['50MA'].iloc[-1].squeeze())
 
-    if pd.insa(price) or pd.isna(ma20) or pd.isna(ma50):
+    if pd.isna(price) or pd.isna(ma20) or pd.isna(ma50):
         trend = "Not enough data"
     elif price > ma20 and ma20 > ma50:
         trend = "Strong Uptrend"
