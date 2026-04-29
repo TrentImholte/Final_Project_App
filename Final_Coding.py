@@ -22,7 +22,7 @@ else:
 
     if price.isna(ma20) or pd.isna(ma50):
         trend = "Not enough data"
-    elif price > ma20 and ma20 > ma 50:
+    elif price > ma20 and ma20 > ma50:
         trend = "Strong Uptrend"
     elif price < ma20 and ma20 < ma50:
         trend = "Strong Downtrend"
