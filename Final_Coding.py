@@ -10,11 +10,12 @@ ticker = st.text_input("Enter a stock ticker:", "AAPL")
 
 data_single = yf.download(ticker, period="6mo")
 
-if data_single.empty:
-    st.error("Invalid ticker or no data available.")
-else:
-    data_single['20MA'] = data_single['Close'].rolling(20).mean()
-    data_single['50MA'] = data_single['Close'].rolling(50).mean()
+# Flatten columns if needed
+if isinstance(data_single.columns, pd.MultiIndex):
+    data_single.columns = data_single.columns.get_level_values(0)
+
+ data_single['20MA'] = data_single['Close'].rolling(20).mean()
+ data_single['50MA'] = data_single['Close'].rolling(50).mean()
 
     price = float(data_single['Close'].iloc[-1].squeeze())
     ma20 = float(data_single['20MA'].iloc[-1].squeeze())
