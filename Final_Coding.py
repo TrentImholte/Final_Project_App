@@ -126,8 +126,13 @@ try:
 
     returns = data_portfolio.pct_change().dropna()
 
-    portfolio_returns = returns.dot(weights)
+    portfolio_returns = returns @ weights
     portfolio_returns = pd.Series(portfolio_returns).dropna()
+
+    if isinstance(portfolio_returns, pd.DataFrame):
+        portfolio_returns = portfolio_returns.squeeze()
+
+    portfolio_returns = portfolio_returns.astpye(float)
 
     spy = yf.download("SPY", period="1y", progress=False)['Close']
     spy_returns = spy.pct_change().dropna()
