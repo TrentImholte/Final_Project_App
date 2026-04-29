@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 
 # =========================
-# PAGE CONFIG (NEW UI STYLE)
+# PAGE CONFIG
 # =========================
 st.set_page_config(
     page_title="Stock Analytics Dashboard",
@@ -36,14 +36,16 @@ if data_single is None or data_single.empty:
     st.error("No data returned. Try AAPL, MSFT, TSLA, or NVDA.")
     st.stop()
 
+# Flatten columns if needed
 if isinstance(data_single.columns, pd.MultiIndex):
     data_single.columns = data_single.columns.get_level_values(0)
 
-# Indicators
+# =========================
+# INDICATORS
+# =========================
 data_single["20MA"] = data_single["Close"].rolling(20).mean()
 data_single["50MA"] = data_single["Close"].rolling(50).mean()
 
-# Safe values
 price = float(data_single["Close"].iloc[-1])
 ma20 = float(data_single["20MA"].iloc[-1])
 ma50 = float(data_single["50MA"].iloc[-1])
@@ -52,7 +54,6 @@ price = price if not np.isnan(price) else np.nan
 ma20 = ma20 if not np.isnan(ma20) else np.nan
 ma50 = ma50 if not np.isnan(ma50) else np.nan
 
-# Trend logic
 if np.isnan(price) or np.isnan(ma20) or np.isnan(ma50):
     trend = "Not enough data"
 elif price > ma20 and ma20 > ma50:
@@ -91,6 +92,10 @@ col1.metric("Trend", trend)
 col2.metric("RSI", round(rsi, 2) if not np.isnan(rsi) else "N/A")
 col3.metric("Volatility", round(volatility_single, 4))
 
+# =========================
+# CHARTS
+# =========================
+st.subheader("📉 Price & Moving Averages")
 st.line_chart(data_single[["Close", "20MA", "50MA"]])
 
 st.divider()
@@ -153,7 +158,7 @@ try:
     )
 
     # =========================
-    # PORTFOLIO METRICS (CLEAN UI)
+    # METRICS ROW
     # =========================
     c1, c2, c3, c4 = st.columns(4)
 
@@ -162,7 +167,13 @@ try:
     c3.metric("Sharpe Ratio", round(sharpe, 2))
     c4.metric("Volatility", round(vol, 4))
 
+    # =========================
+    # CHARTS
+    # =========================
+    st.subheader("📊 Portfolio Performance")
     st.line_chart(data_portfolio)
+
+    st.subheader("📉 Portfolio Returns Over Time")
     st.line_chart(portfolio_returns)
 
 except Exception as e:
