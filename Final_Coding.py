@@ -16,7 +16,7 @@ else:
     data_single['20MA'] = data_single['Close'].rolling(20).mean()
     data_single['50MA'] = data_single['Close'].rolling(50).mean()
 
-    price = float(data_single['Close']iloc[-1].squeeze())
+    price = float(data_single['Close'].iloc[-1].squeeze())
     ma20 = float(data_single['20MA'].iloc[-1].squeeze())
     ma50 = float(data_single['50MA'].iloc[-1].squeeze())
 
