@@ -20,38 +20,38 @@ price = float(data_single['Close'].iloc[-1].squeeze())
 ma20 = float(data_single['20MA'].iloc[-1].squeeze())
 ma50 = float(data_single['50MA'].iloc[-1].squeeze())
 
-    if pd.isna(price) or pd.isna(ma20) or pd.isna(ma50):
-        trend = "Not enough data"
-    elif price > ma20 and ma20 > ma50:
-        trend = "Strong Uptrend"
-    elif price < ma20 and ma20 < ma50:
-        trend = "Strong Downtrend"
-    else:
-        trend = "Mixed Trend"
+if pd.isna(price) or pd.isna(ma20) or pd.isna(ma50):
+    trend = "Not enough data"
+elif price > ma20 and ma20 > ma50:
+    trend = "Strong Uptrend"
+elif price < ma20 and ma20 < ma50:
+    trend = "Strong Downtrend"
+else:
+    trend = "Mixed Trend"
 
-    st.metric("Trend", trend)
+st.metric("Trend", trend)
 
-    # RSI
-    def compute_rsi(data, window=14):
-        delta = data['Close'].diff()
-        gain = delta.clip(lower=0).rolling(window).mean()
-        loss = -delta.clip(upper=0).rolling(window).mean()
+# RSI
+def compute_rsi(data, window=14):
+    delta = data['Close'].diff()
+    gain = delta.clip(lower=0).rolling(window).mean()
+    loss = -delta.clip(upper=0).rolling(window).mean()
 
-        rs = gain / loss.replace(0, np.nan)
-        return 100 - (100 / (1 + rs))
+    rs = gain / loss.replace(0, np.nan)
+    return 100 - (100 / (1 + rs))
 
-    data_single['RSI'] = compute_rsi(data_single)
-    rsi = data_single['RSI'].iloc[-1]
+data_single['RSI'] = compute_rsi(data_single)
+rsi = data_single['RSI'].iloc[-1]
 
-    st.metric("RSI", round(rsi, 2))
+st.metric("RSI", round(rsi, 2))
 
-    # Volatility
-    returns_single = data_single['Close'].pct_change()
-    volatility_single = returns_single.std() * np.sqrt(252)
+# Volatility
+returns_single = data_single['Close'].pct_change()
+volatility_single = returns_single.std() * np.sqrt(252)
 
-    st.metric("Volatility", round(volatility_single, 4))
+st.metric("Volatility", round(volatility_single, 4))
 
-    st.line_chart(data_single[['Close', '20MA', '50MA']])
+st.line_chart(data_single[['Close', '20MA', '50MA']])
 
 # ----------- PORTFOLIO ANALYSIS -----------
 st.subheader("📊 Portfolio Analysis")
