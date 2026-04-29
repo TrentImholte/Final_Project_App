@@ -8,26 +8,47 @@ st.title("📈 Stock Analytics Dashboard")
 # ----------- SINGLE STOCK ANALYSIS -----------
 ticker = st.text_input("Enter a stock ticker:", "AAPL")
 
-data_single = yf.download(ticker, period="6mo")
+# CLEAN ticker input
+ticker = ticker.strip().upper()
 
+# SAFE download (more stable)
+data_single = yf.download(
+    ticker,
+    period="6mo",
+    progress=False,
+    threads=False
+)
+
+# Retry fallback if empty
+if data_single is None or data_single.empty:
+    st.warning("Retrying data download...")
+
+    data_single = yf.download(
+        ticker,
+        period="6mo",
+        progress=False,
+        threads=False,
+        auto_adjust=True
+    )
+
+# Final fail-safe
 if data_single.empty:
-    st.error("No data returned. Try a valid ticker (e.g. AAPL, MSFT).")
+    st.error("No data returned. Try AAPL, MSFT, TSLA, or NVDA.")
     st.stop()
 
 # Flatten columns if needed
 if isinstance(data_single.columns, pd.MultiIndex):
     data_single.columns = data_single.columns.get_level_values(0)
 
-# Indicators
+# -------- Indicators --------
 data_single['20MA'] = data_single['Close'].rolling(20).mean()
 data_single['50MA'] = data_single['Close'].rolling(50).mean()
 
-# SAFE scalar extraction (IMPORTANT FIX)
+# SAFE scalar extraction
 price = data_single['Close'].iloc[-1]
 ma20 = data_single['20MA'].iloc[-1]
 ma50 = data_single['50MA'].iloc[-1]
 
-# Convert safely
 price = float(price) if pd.notna(price) else np.nan
 ma20 = float(ma20) if pd.notna(ma20) else np.nan
 ma50 = float(ma50) if pd.notna(ma50) else np.nan
@@ -81,7 +102,7 @@ weights_input = st.text_input(
 )
 
 try:
-    tickers_list = [t.strip() for t in tickers_input.split(",")]
+    tickers_list = [t.strip().upper() for t in tickers_input.split(",")]
     weights = np.array([float(w) for w in weights_input.split(",")])
 
     if len(tickers_list) != len(weights):
@@ -92,7 +113,12 @@ try:
         st.error("Weights must sum to 1.")
         st.stop()
 
-    data_portfolio = yf.download(tickers_list, period="1y")['Close']
+    data_portfolio = yf.download(
+        tickers_list,
+        period="1y",
+        progress=False,
+        threads=False
+    )['Close']
 
     if data_portfolio.empty:
         st.error("Portfolio data could not be loaded.")
@@ -100,11 +126,10 @@ try:
 
     returns = data_portfolio.pct_change().dropna()
 
-    # FIX: ensure correct shape
     portfolio_returns = returns.dot(weights)
     portfolio_returns = pd.Series(portfolio_returns).dropna()
 
-    spy = yf.download("SPY", period="1y")['Close']
+    spy = yf.download("SPY", period="1y", progress=False)['Close']
     spy_returns = spy.pct_change().dropna()
 
     total_return = float((1 + portfolio_returns).prod() - 1)
@@ -112,8 +137,8 @@ try:
 
     vol = float(portfolio_returns.std() * np.sqrt(252))
 
-    sharpe = (
-        float(portfolio_returns.mean() / portfolio_returns.std() * np.sqrt(252))
+    sharpe = float(
+        portfolio_returns.mean() / portfolio_returns.std() * np.sqrt(252)
         if portfolio_returns.std() != 0 else 0
     )
 
