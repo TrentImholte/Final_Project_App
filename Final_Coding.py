@@ -5,13 +5,12 @@ import numpy as np
 
 st.title("📈 Stock Analytics Dashboard")
 
-# ----------- SINGLE STOCK ANALYSIS -----------
-ticker = st.text_input("Enter a stock ticker:", "AAPL")
+# =========================
+# SINGLE STOCK ANALYSIS
+# =========================
 
-# CLEAN ticker input
-ticker = ticker.strip().upper()
+ticker = st.text_input("Enter a stock ticker:", "AAPL").strip().upper()
 
-# SAFE download (more stable)
 data_single = yf.download(
     ticker,
     period="6mo",
@@ -19,35 +18,22 @@ data_single = yf.download(
     threads=False
 )
 
-# Retry fallback if empty
 if data_single is None or data_single.empty:
-    st.warning("Retrying data download...")
-
-    data_single = yf.download(
-        ticker,
-        period="6mo",
-        progress=False,
-        threads=False,
-        auto_adjust=True
-    )
-
-# Final fail-safe
-if data_single.empty:
     st.error("No data returned. Try AAPL, MSFT, TSLA, or NVDA.")
     st.stop()
 
-# Flatten columns if needed
+# Fix MultiIndex issue
 if isinstance(data_single.columns, pd.MultiIndex):
     data_single.columns = data_single.columns.get_level_values(0)
 
-# -------- Indicators --------
-data_single['20MA'] = data_single['Close'].rolling(20).mean()
-data_single['50MA'] = data_single['Close'].rolling(50).mean()
+# Indicators
+data_single["20MA"] = data_single["Close"].rolling(20).mean()
+data_single["50MA"] = data_single["Close"].rolling(50).mean()
 
-# SAFE scalar extraction
-price = data_single['Close'].iloc[-1]
-ma20 = data_single['20MA'].iloc[-1]
-ma50 = data_single['50MA'].iloc[-1]
+# Safe scalar extraction
+price = data_single["Close"].iloc[-1]
+ma20 = data_single["20MA"].iloc[-1]
+ma50 = data_single["50MA"].iloc[-1]
 
 price = float(price) if pd.notna(price) else np.nan
 ma20 = float(ma20) if pd.notna(ma20) else np.nan
@@ -65,30 +51,39 @@ else:
 
 st.metric("Trend", trend)
 
-# -------- RSI --------
+# =========================
+# RSI
+# =========================
+
 def compute_rsi(data, window=14):
-    delta = data['Close'].diff()
+    delta = data["Close"].diff()
     gain = delta.clip(lower=0).rolling(window).mean()
     loss = -delta.clip(upper=0).rolling(window).mean()
 
     rs = gain / loss.replace(0, np.nan)
     return 100 - (100 / (1 + rs))
 
-data_single['RSI'] = compute_rsi(data_single)
-rsi = data_single['RSI'].iloc[-1]
+data_single["RSI"] = compute_rsi(data_single)
+rsi = data_single["RSI"].iloc[-1]
 rsi = float(rsi) if pd.notna(rsi) else np.nan
 
 st.metric("RSI", round(rsi, 2) if not np.isnan(rsi) else "N/A")
 
-# -------- Volatility --------
-returns_single = data_single['Close'].pct_change()
-volatility_single = returns_single.std() * np.sqrt(252)
+# =========================
+# VOLATILITY
+# =========================
 
-st.metric("Volatility", round(float(volatility_single), 4))
+returns_single = data_single["Close"].pct_change()
+volatility_single = float(returns_single.std() * np.sqrt(252))
 
-st.line_chart(data_single[['Close', '20MA', '50MA']])
+st.metric("Volatility", round(volatility_single, 4))
 
-# ----------- PORTFOLIO ANALYSIS -----------
+st.line_chart(data_single[["Close", "20MA", "50MA"]])
+
+# =========================
+# PORTFOLIO ANALYSIS
+# =========================
+
 st.subheader("📊 Portfolio Analysis")
 
 tickers_input = st.text_input(
@@ -103,7 +98,7 @@ weights_input = st.text_input(
 
 try:
     tickers_list = [t.strip().upper() for t in tickers_input.split(",")]
-    weights = np.array([float(w) for w in weights_input.split(",")])
+    weights = np.array([float(w) for w in weights_input.split(",")], dtype=float)
 
     if len(tickers_list) != len(weights):
         st.error("Number of tickers must match number of weights.")
@@ -118,7 +113,7 @@ try:
         period="1y",
         progress=False,
         threads=False
-    )['Close']
+    )["Close"]
 
     if data_portfolio.empty:
         st.error("Portfolio data could not be loaded.")
@@ -126,25 +121,22 @@ try:
 
     returns = data_portfolio.pct_change().dropna()
 
-    portfolio_returns = returns @ weights
-    portfolio_returns = pd.Series(portfolio_returns).dropna()
-    
-    if isinstance(portfolio_returns, pd.DataFrame):
-        portfolio_returns = portfolio_returns.squeeze()
+    # FORCE numpy math (fixes Series issues permanently)
+    portfolio_returns = returns.values @ weights
+    portfolio_returns = pd.Series(portfolio_returns).dropna().astype(float)
 
-    portfolio_returns = portfolio_returns.astype(float)
+    spy = yf.download("SPY", period="1y", progress=False)["Close"]
+    spy_returns = spy.pct_change().dropna().values
 
-    spy = yf.download("SPY", period="1y", progress=False)['Close']
-    spy_returns = spy.pct_change().dropna()
+    # Safe scalar math
+    total_return = float(np.prod(1 + portfolio_returns) - 1)
+    benchmark_return = float(np.prod(1 + spy_returns) - 1)
 
-    total_return = float((1 + portfolio_returns).prod() - 1)
-    benchmark_return = float((1 + spy_returns).prod() - 1)
-
-    vol = float(portfolio_returns.std() * np.sqrt(252))
+    vol = float(np.std(portfolio_returns) * np.sqrt(252))
 
     sharpe = float(
-        portfolio_returns.mean() / portfolio_returns.std() * np.sqrt(252)
-        if portfolio_returns.std() != 0 else 0
+        np.mean(portfolio_returns) / np.std(portfolio_returns) * np.sqrt(252)
+        if np.std(portfolio_returns) != 0 else 0
     )
 
     st.metric("Portfolio Return", f"{total_return:.2%}")
